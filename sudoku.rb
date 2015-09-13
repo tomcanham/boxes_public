@@ -4,8 +4,12 @@ class SudokuError < RuntimeError
 end
 
 class Board
-  def initialize
+  def initialize(serialized = nil)
     @values = Array.new(9) { Array.new(9) }
+
+    unless serialized.nil?
+      deserialize(serialized)
+    end
   end
 
   def set(position_name, value)
@@ -41,6 +45,34 @@ class Board
     clear_internal(row, col)
   end
 
+  def pretty_print
+    row_chars = ('A'..'H').to_a+['J']
+
+    puts "\n   " + (1..9).map {|i| " #{i} "}.join
+    (0..8).each do |row|
+      print " #{row_chars[row]} "
+      (0..8).each do |col|
+        print ".#{@values[row][col] || '.'}."
+      end
+      puts
+    end
+  end
+
+  def position_name_to_row_col(position_name)
+    if position_name.instance_of?(Array)
+      return position_name
+    else
+      row_name = position_name[0].upcase
+      col_name = position_name[1]
+
+      row_idx = (('A'..'H').to_a+['J']).index(row_name)
+      col_idx = col_name.to_i - 1
+
+      return row_idx, col_idx
+    end
+  end
+
+  # honestly we probably don't need all these "XXX_internal methods, but I like to hide implementations"
   private
   def row_contents(row)
     Set.new(@values[row].compact)
@@ -56,7 +88,7 @@ class Board
     Set.new(@values[row_base..row_base+2].map {|row| row[col_base..col_base+2]}.flatten.compact)
   end
 
-  def set_internal(row, col, value)
+  def set_internal(row, col, value, validate = true)
     @values[row][col] = value
   end
   
@@ -67,19 +99,9 @@ class Board
   def clear_internal(row, col)
     @values[row][col] = nil
   end
-  
+
   def candidates_internal(row, col)
     Set.new(1..9) - row_contents(row) - col_contents(col) - box_contents(row, col)
-  end
-
-  def position_name_to_row_col(position_name)
-    row_name = position_name[0].upcase
-    col_name = position_name[1]
-
-    row_idx = (('A'..'H').to_a+['J']).index(row_name)
-    col_idx = col_name.to_i - 1
-
-    return row_idx, col_idx
   end
 
   def box_for_row_col(row_idx, col_idx)
@@ -87,6 +109,19 @@ class Board
     col_offset = (col_idx / 3).floor
 
     @boxes[row_offset + col_offset]
+  end
+
+  def deserialize(serialized_board)
+    chars = serialized_board.split('') # turns it into an 81-character array
+
+    (0..8).each do |row|
+      (0..8).each do |col|
+        this_val = chars[row * 9 + col]
+        this_val = (this_val == '.') ? nil : this_val.to_i
+
+        @values[row][col] = this_val
+      end
+    end
   end
 
   def board_positions

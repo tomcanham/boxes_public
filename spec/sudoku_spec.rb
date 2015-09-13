@@ -1,12 +1,26 @@
 require './sudoku'
 
 RSpec.describe Board do
+  let(:solvable_serialized) do
+    "..1.948.7..2..........8.9.1.45..12..6.72..3....98354.....9.6...96..5378.12347865."
+  end
+
   it "set and get work by standard notation" do
     board = Board.new
 
     board.set("A1", 3)
     value = board.get("A1")
     expect(value).to eq(3)
+  end
+
+  context "position name mapping" do
+    it "works with 'friendly' cell names" do
+      expect(Board.new.position_name_to_row_col("J8")).to eq([8,7])
+    end
+
+    it "works with pre-mapped [row,col] values" do
+      expect(Board.new.position_name_to_row_col([6,3])).to eq([6,3])
+    end
   end
 
   context "duplicates" do 
@@ -74,6 +88,26 @@ RSpec.describe Board do
       board = filled_box_one
 
       expect(board.candidates("A1")).to eq(Set.new)
+    end
+  end
+
+  context "deserialization" do
+    it "works with a fully empty board" do
+      board = Board.new('.' * 81)
+
+      expect(board.get("J9")).to be_nil
+    end
+
+    it "works with a board with one cell filled" do
+      board = Board.new('.' * 40 + '5' + '.' * 40)
+
+      expect(board.get("E5")).to eq(5)
+    end
+
+    it "works with an arbitrary solvable board" do
+      board = Board.new(solvable_serialized)
+
+      expect(board.get("J4")).to eq(4)
     end
   end
 end
