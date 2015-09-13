@@ -1,0 +1,9 @@
+Some notes about the `twitter_search.rb` file.
+
+First, using the twitter gem felt a little like "cheating," but there was no requirement that I not use gems. Specifically, OAuth 1.0a is "fiddly" enough that I would certainly not roll my own implementation. I have done OAuth (2.0) manually in Ruby (using the Faraday gem and a LOT of trial and error), but it's not something I'd recommend. There are a surprising number of edge conditions to consider.
+
+Second, if I were doing this for production, I'd ask more questions -- many of them focused on the input/output format. The Twitter API limits user/tweet search results to 1000 hits, so this needs to be called out. Also, the method of encoding/retrieving the auth & auth credentials was never specified, so I used what I've seen as a semi-standard, environment variable save. User search *cannot* be carried out without user-level authentication (per the docs), so we have to have a full access token, not just an API ID/secret pair.
+
+Finally, one thing that feels a bit "dirty" to me is the commingling of concerns between the search call and the display formatting. This comes from years of working with Rails, I suppose, where the "V" is supposed to be separate from the "M" and the "C" :) Ideally, we'd just stream out tweets/users and separate the concern of rendering to a collaborator class. But then, since I'm using the twitter gem, the search class wouldn't be much more than a thin wrapper around two (of the many) calls into this library.
+
+A note on performance -- better performance *might* be achievable by using the streaming API, but (a) I don't know how this works, and (b) it requires specific whitelisting from Twitter to use. It appears that the library is correctly using pagination/cursors in blocks of 100 records, so this should be about as performant as you'll get when calling the Twitter REST API.
