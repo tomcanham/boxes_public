@@ -3,6 +3,32 @@ require 'set'
 class SudokuError < RuntimeError
 end
 
+class NakedSingletonStrategy
+  def solve(board)
+    solved = []
+    remaining = []
+
+    board = board.clone
+    (0..8).each do |row|
+      (0..8).each do |col|
+        if board.get([row, col]).nil?
+          candidates = board.candidates([row, col])
+          if candidates.count == 0
+            raise SudokuError.new("Unable to solve board")
+          elsif candidates.count == 1
+            board.set([row, col], candidates.first)
+            solved.push("#{board.friendly_name(row, col)} = #{candidates.first}")
+          else
+            remaining.push(board.friendly_name(row, col))
+          end
+        end
+      end
+    end
+
+    return board, solved, remaining
+  end
+end
+
 class Board
   def initialize(serialized = nil)
     @values = Array.new(9) { Array.new(9) }
@@ -12,16 +38,19 @@ class Board
     end
   end
 
+  def solve(strategy)
+    strategy.solve(self)
+  end
+
   def set(position_name, value)
     row, col = position_name_to_row_col(position_name)
-    canonical_name = position_name.upcase
 
     unless get_internal(row, col).nil?
-      raise SudokuError.new("Cell #{canonical_name} is already solved")
+      raise SudokuError.new("Cell #{position_name} is already solved")
     end
 
     unless candidates(position_name).include?(value)
-      raise SudokuError.new("#{value.to_s} is not a valid value for cell #{canonical_name}. Valid values are #{candidates(position_name).to_a.join(', ')}.")
+      raise SudokuError.new("#{value.to_s} is not a valid value for cell #{position_name}. Valid values are #{candidates(position_name).to_a.join(', ')}.")
     end
 
     set_internal(row, col, value)
@@ -52,7 +81,7 @@ class Board
     (0..8).each do |row|
       print " #{row_chars[row]} "
       (0..8).each do |col|
-        print ".#{@values[row][col] || '.'}."
+        print " #{@values[row][col] || '.'} "
       end
       puts
     end
@@ -70,6 +99,23 @@ class Board
 
       return row_idx, col_idx
     end
+  end
+
+  def ==(other)
+    return other.instance_of?(Board) && (other.instance_variable_get(:@values) == @values)
+  end
+
+  def clone
+    result = Board.new
+    @values_clone = Array.new(9) {|row| @values[row].dup}
+
+    result.instance_variable_set(:@values, @values_clone)
+
+    result
+  end
+
+  def friendly_name(row, col)
+    return board_positions[row][col]
   end
 
   # honestly we probably don't need all these "XXX_internal methods, but I like to hide implementations"
