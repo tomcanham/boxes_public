@@ -52,7 +52,8 @@ class Board
   end
 
   def candidates_internal(row, col)
-    Set.new(1..9) - @rows
+    Set.new(1..9) - @rows[row] - @cols[col]
+  end
 
   def position_name_to_row_col(position_name)
     row_name = position_name[0].upcase
