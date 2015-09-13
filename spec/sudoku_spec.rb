@@ -40,6 +40,16 @@ RSpec.describe Board do
   end
 
   context "candidates" do
+    def filled_box_one
+      board = Board.new
+
+      (1..3).each {|i| board.set("A#{i}", i)}
+      (4..6).each {|i| board.set("B#{i - 3}", i)}
+      (7..9).each {|i| board.set("C#{i - 6}", i)}
+
+      board
+    end
+
     it "returns all candidates for an empty cell" do
       board = Board.new
 
@@ -53,12 +63,16 @@ RSpec.describe Board do
       expect(board.candidates("A1")).to eq(Set.new(1..9) - [3])
     end
 
-    it "returns an empty set if all cells are filled" do
-      board = Board.new
+    it "returns the only viable candidate if just one option is available" do
+      board = filled_box_one
 
-      (1..3).each {|i| board.set("A#{i}", i)}
-      (4..6).each {|i| board.set("B#{i - 3}", i)}
-      (7..9).each {|i| board.set("C#{i - 6}", i)}
+      board.clear("B2") # clear the "5" cell
+      expect(board.candidates("B2")).to eq(Set.new([5]))
+    end
+
+    it "returns an empty set if all cells are filled" do
+      board = filled_box_one
+
       expect(board.candidates("A1")).to eq(Set.new)
     end
   end

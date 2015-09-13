@@ -35,6 +35,12 @@ class Board
     candidates_internal(row, col)
   end
 
+  def clear(position_name)
+    row, col = position_name_to_row_col(position_name)
+
+    clear_internal(row, col)
+  end
+
   private
   def row_contents(row)
     Set.new(@values[row].compact)
@@ -58,6 +64,10 @@ class Board
     @values[row][col]
   end
 
+  def clear_internal(row, col)
+    @values[row][col] = nil
+  end
+  
   def candidates_internal(row, col)
     Set.new(1..9) - row_contents(row) - col_contents(col) - box_contents(row, col)
   end
