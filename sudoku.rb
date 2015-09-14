@@ -8,34 +8,70 @@ class NakedSingletonStrategy
     solved = []
     remaining = []
 
-    board = board.clone
     (0..8).each do |row|
       (0..8).each do |col|
-        if board.get([row, col]).nil?
-          candidates = board.candidates([row, col])
-          if candidates.count == 0
-            raise SudokuError.new("Unable to solve board")
-          elsif candidates.count == 1
-            board.set([row, col], candidates.first)
-            solved.push("#{board.friendly_name(row, col)} = #{candidates.first}")
-          else
-            remaining.push(board.friendly_name(row, col))
-          end
+        candidates = board.candidates([row, col])
+        if candidates.count == 1
+          board.set([row, col], candidates.first)
+          solved.push("#{board.friendly_name(row, col)} = #{candidates.first}")
+        elsif candidates.count > 1
+          remaining.push(board.friendly_name(row, col))
         end
       end
     end
 
-    return board, solved, remaining
+    return solved, remaining
+  end
+end
+
+# we need this to keep track of candidate counts
+class CandidatesMap
+  def initialize(board)
+    @board = board
+    reset
+
+    (0..8).each do |row|
+      (0..8).each do |col|
+        if board.get([row, col])
+          solve_cell(row, col, board.get([row, col]))
+        end
+      end
+    end
+  end
+
+  def solve_cell(row, col, value)
+    @row_candidates[row].delete(value)
+    @col_candidates[col].delete(value)
+    @box_candidates[Board.box_idx_for_row_col(row, col)].delete(value)
+  end
+
+  def candidates(row, col)
+    if @board.get([row, col])
+      Set.new
+    else
+      row_candidates = @row_candidates[row]
+      col_candidates = @col_candidates[col]
+      box_candidates = @box_candidates[Board.box_idx_for_row_col(row, col)]
+
+      row_candidates & col_candidates & box_candidates
+    end
+  end
+
+  def reset
+    @row_candidates = Array.new(9) {Set.new(1..9)}
+    @col_candidates = Array.new(9) {Set.new(1..9)}
+    @box_candidates = Array.new(9) {Set.new(1..9)}
   end
 end
 
 class Board
   def initialize(serialized = nil)
     @values = Array.new(9) { Array.new(9) }
+    @candidates_map = CandidatesMap.new(self)
 
     unless serialized.nil?
       deserialize(serialized)
-    end
+    end    
   end
 
   def solve(strategy)
@@ -54,6 +90,7 @@ class Board
     end
 
     set_internal(row, col, value)
+    @candidates_map.solve_cell(row, col, value)
   end
 
   def get(position_name)
@@ -65,13 +102,7 @@ class Board
   def candidates(position_name)
     row, col = position_name_to_row_col(position_name)
 
-    candidates_internal(row, col)
-  end
-
-  def clear(position_name)
-    row, col = position_name_to_row_col(position_name)
-
-    clear_internal(row, col)
+    @candidates_map.candidates(row, col)
   end
 
   def pretty_print
@@ -118,54 +149,41 @@ class Board
     return board_positions[row][col]
   end
 
+  def self.box_idx_for_row_col(row_idx, col_idx)
+    row_offset = (row_idx / 3).floor * 3
+    col_offset = (col_idx / 3).floor
+
+    row_offset + col_offset
+  end
+
   # honestly we probably don't need all these "XXX_internal methods, but I like to hide implementations"
   private
-  def row_contents(row)
-    Set.new(@values[row].compact)
-  end
-
-  def col_contents(col)
-    Set.new(@values.map {|r| r[col]}.compact)
-  end
-
-  def box_contents(row, col)
-    row_base = (row / 3).floor * 3
-    col_base = (col / 3).floor * 3
-    Set.new(@values[row_base..row_base+2].map {|row| row[col_base..col_base+2]}.flatten.compact)
-  end
-
-  def set_internal(row, col, value, validate = true)
+  def set_internal(row, col, value)
     @values[row][col] = value
+    @candidates_map.solve_cell(row, col, value)
   end
   
   def get_internal(row, col)
     @values[row][col]
   end
 
-  def clear_internal(row, col)
-    @values[row][col] = nil
-  end
+  def box_for_row_col(row, col)
+    row_offset = (row / 3).floor * 3
+    col_offset = (col / 3).floor
 
-  def candidates_internal(row, col)
-    Set.new(1..9) - row_contents(row) - col_contents(col) - box_contents(row, col)
-  end
-
-  def box_for_row_col(row_idx, col_idx)
-    row_offset = (row_idx / 3).floor * 3
-    col_offset = (col_idx / 3).floor
-
-    @boxes[row_offset + col_offset]
+    @boxes[Board.box_idx_for_row_col(row, col)]
   end
 
   def deserialize(serialized_board)
     chars = serialized_board.split('') # turns it into an 81-character array
 
+    @candidates_map.reset
     (0..8).each do |row|
       (0..8).each do |col|
         this_val = chars[row * 9 + col]
         this_val = (this_val == '.') ? nil : this_val.to_i
 
-        @values[row][col] = this_val
+        set_internal(row, col, this_val)
       end
     end
   end

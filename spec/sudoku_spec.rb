@@ -1,4 +1,5 @@
 require './sudoku'
+require 'pry'
 
 RSpec.describe Board do
   let(:easy_solvable_serialized) do
@@ -59,13 +60,11 @@ RSpec.describe Board do
 
   context "candidates" do
     def filled_box_one
-      board = Board.new
+      Board.new('123' + '.' * 6 + '456' + '.' * 6 + '789' + '.' * 60)
+    end
 
-      (1..3).each {|i| board.set("A#{i}", i)}
-      (4..6).each {|i| board.set("B#{i - 3}", i)}
-      (7..9).each {|i| board.set("C#{i - 6}", i)}
-
-      board
+    def filled_box_one_except_center
+      Board.new('123' + '.' * 6 + '4.6' + '.' * 6 + '789' + '.' * 60)
     end
 
     it "returns all candidates for an empty cell" do
@@ -82,9 +81,8 @@ RSpec.describe Board do
     end
 
     it "returns the only viable candidate if just one option is available" do
-      board = filled_box_one
+      board = filled_box_one_except_center
 
-      board.clear("B2") # clear the "5" cell
       expect(board.candidates("B2")).to eq(Set.new([5]))
     end
 
@@ -118,37 +116,35 @@ RSpec.describe Board do
   context "naked singleton strategy" do
     it "solves an easy puzzle" do
       board = Board.new(easy_solvable_serialized)
-      iterated = board.clone
 
       strategy = NakedSingletonStrategy.new
       total_solved = []
       begin
-        iterated, solved, remaining = iterated.solve(strategy)
+        solved, remaining = board.solve(strategy)
         total_solved += solved
       end while solved.any?
 
       expect(remaining).to be_empty
-      expect(total_solved).to eq([
-        "B6 = 7", "B7 = 5", "C6 = 2", "D5 = 6", "E5 = 4", "E6 = 9", "E8 = 1", "F1 = 2", "F2 = 1",
-        "F9 = 6", "G7 = 1", "H3 = 4", "H4 = 1", "H9 = 2", "J9 = 9", "B5 = 1", "C3 = 6", "D4 = 7",
-        "D8 = 9", "D9 = 8", "E2 = 8", "E9 = 5", "F8 = 7", "G3 = 8", "G5 = 2", "D1 = 3", "A1 = 5",
-        "A2 = 3", "A4 = 6", "A8 = 2", "B2 = 9", "B4 = 3", "B9 = 4", "C2 = 7", "C4 = 5", "C8 = 3",
-        "G1 = 7", "G2 = 5", "G8 = 4", "G9 = 3", "B1 = 8", "B8 = 6", "C1 = 4"])
+      expect(total_solved.sort).to eq([
+        "A1 = 5", "A2 = 3", "A4 = 6", "A8 = 2", "B1 = 8", "B2 = 9", "B4 = 3", "B5 = 1", "B6 = 7",
+        "B7 = 5", "B8 = 6", "B9 = 4", "C1 = 4", "C2 = 7", "C3 = 6", "C4 = 5", "C6 = 2", "C8 = 3",
+        "D1 = 3", "D4 = 7", "D5 = 6", "D8 = 9", "D9 = 8", "E2 = 8", "E5 = 4", "E6 = 9", "E8 = 1",
+        "E9 = 5", "F1 = 2", "F2 = 1", "F8 = 7", "F9 = 6", "G1 = 7", "G2 = 5", "G3 = 8", "G5 = 2",
+        "G7 = 1", "G8 = 4", "G9 = 3", "H3 = 4", "H4 = 1", "H9 = 2", "J9 = 9"])
     end
 
     it "improves a hard puzzle" do
       board = Board.new(hard_solvable_serialized)
-      iterated = board.clone
 
       strategy = NakedSingletonStrategy.new
       total_solved = []
       begin
-        iterated, solved, remaining = iterated.solve(strategy)
+        solved, remaining = board.solve(strategy)
         total_solved += solved
       end while solved.any?
 
       expect(remaining).to_not be_empty
-      expect(total_solved).to eq(["E2 = 2", "E1 = 7", "E8 = 3", "E7 = 5"])
+      expect(total_solved.sort).to eq(["E1 = 7", "E2 = 2", "E7 = 5", "E8 = 3"])
     end
   end
 end
