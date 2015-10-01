@@ -1,5 +1,3 @@
-Just a public repo for showing/sharing code over the next day or so.
-
 Plans on the Sudoku solver:
 
 Now that I have the basic board representation and rules working, I want to implement various solution strategies. I probably will implement them AS strategy objects (the strategy design pattern, that is). Essentially, we can sequentially scan the cells for certain "useful" patterns. The simplest of these is the "naked singleton" -- a cell where the candidates list includes only one value. Since there's only one value possible, we simply solve the cell with that value. Much more complex strategies exist, however. For instance, if two cells aligned in a column are the only cells in a box that can contain a given value, then we know -- without having to know which of the two it is -- no other cell in that column can contain that value. So by a process of iterative refinement, applying various strategies like these, we can reduce the number of candidates for each unsolved cell until it either becomes solved (because no other choice is possible) or reduces to a naked singleton as a result of another cell's candidates changing.
