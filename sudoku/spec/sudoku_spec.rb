@@ -1,6 +1,8 @@
 require './sudoku'
 require 'pry'
 
+include Sudoku
+
 RSpec.describe Board do
   let(:easy_solvable_serialized) do
     "..1.948.7..2..........8.9.1.45..12..6.72..3....98354.....9.6...96..5378.12347865."
@@ -113,14 +115,17 @@ RSpec.describe Board do
     end
   end
 
-  context "naked singleton strategy" do
+  context "row/col/box singleton strategy" do
     it "solves an easy puzzle" do
-      board = Board.new(easy_solvable_serialized)
+      cells = Board.new(easy_solvable_serialized).cell_map
 
-      strategy = NakedSingletonStrategy.new
+      strategy = Strategies::RowColBoxSingletonStrategy.new
+
       total_solved = []
+
       begin
-        solved, remaining = board.solve(strategy)
+        solved, remaining, cells = strategy.solve(cells)
+
         total_solved += solved
       end while solved.any?
 
@@ -131,20 +136,43 @@ RSpec.describe Board do
         "D1 = 3", "D4 = 7", "D5 = 6", "D8 = 9", "D9 = 8", "E2 = 8", "E5 = 4", "E6 = 9", "E8 = 1",
         "E9 = 5", "F1 = 2", "F2 = 1", "F8 = 7", "F9 = 6", "G1 = 7", "G2 = 5", "G3 = 8", "G5 = 2",
         "G7 = 1", "G8 = 4", "G9 = 3", "H3 = 4", "H4 = 1", "H9 = 2", "J9 = 9"])
+      expect(cells.chain_length).to eq(4) # 4 full iterations required to solve
     end
 
     it "improves a hard puzzle" do
-      board = Board.new(hard_solvable_serialized)
+      cells = Board.new(hard_solvable_serialized).cell_map
 
-      strategy = NakedSingletonStrategy.new
+      strategy = Strategies::RowColBoxSingletonStrategy.new
+
       total_solved = []
+
       begin
-        solved, remaining = board.solve(strategy)
+        solved, remaining, cells = strategy.solve(cells)
+
         total_solved += solved
       end while solved.any?
 
       expect(remaining).to_not be_empty
-      expect(total_solved.sort).to eq(["E1 = 7", "E2 = 2", "E7 = 5", "E8 = 3"])
+      expect(total_solved.sort).to eq([
+        "C4 = 8", "D2 = 6", "D3 = 9", "D4 = 2", "D5 = 5", "D7 = 7", "E1 = 7", "E2 = 2", "E7 = 5",
+        "E8 = 3", "F4 = 6", "F5 = 7", "F6 = 8", "F9 = 2", "G1 = 6", "G3 = 2"])
+      expect(cells.chain_length).to eq(4) # 4 full iterations required to give up this strategy
+    end
+  end
+
+  context "box-line removal strategy" do
+    it "correctly removes impossible candidates" do
+      cells = Board.new.cell_map
+
+      strategy = Strategies::BoxLineRemovalStrategy.new
+      cells.box(0).each { |cell| cell.candidates.delete(1) } # first remove all the "one" candidates
+      cells[0][0].candidates.add(1)
+      cells[0][1].candidates.add(1) # now A2 & A2 both include 1 as a candidate, and they are the ONLY cells in this box that do
+
+      solved, remaining, cells = strategy.solve(cells) # now, none of the cells in row A should contain the candidate 1 EXCEPT A1 & A2
+
+      expect(remaining).to_not be_empty
+      expect(cells[0][3].candidates).to_not include(1)
     end
   end
 end
